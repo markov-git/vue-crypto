@@ -143,7 +143,7 @@
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
           {{ selectedTicker.name }} - USD
         </h3>
-        <div class="flex items-end border-gray-600 border-b border-l h-64">
+        <div class="flex items-end border-gray-600 border-b border-l h-64" ref="graph">
           <div
               v-for="(bar, i) in normalizedGraph"
               :key="i"
@@ -151,6 +151,7 @@
                 height: `${bar}%`
               }"
               class="bg-purple-800 border w-10"
+              ref="bar"
           ></div>
         </div>
         <button
@@ -201,7 +202,8 @@ export default {
       tickerError: false,
       page: 1,
       filter: '',
-      badTickerError: false
+      badTickerError: false,
+      maxGraphElements: 1,
     }
   },
   async created() {
@@ -235,6 +237,16 @@ export default {
     })
     this.loading = false
   },
+
+  mounted() {
+
+    window.addEventListener('resize', this.calculateMaxGraphElements)
+  },
+
+  beforeUnmount() {
+    window.removeEventListener('resize', this.calculateMaxGraphElements)
+  },
+
   computed: {
     tickerLength() {
       this.tickerError = false
@@ -290,12 +302,24 @@ export default {
     }
   },
   methods: {
+    calculateMaxGraphElements() {
+      if (!this.$refs.graph) {
+        return
+      }
+      const barWidth = this.$refs.bar.clientWidth
+      console.log(barWidth)
+      this.maxGraphElements = this.$refs.graph.clientWidth / barWidth
+    },
+
     updateTicker(tickerName, price) {
       this.tickers
           .filter(t => t.name === tickerName)
           .forEach(t => {
             if (t === this.selectedTicker) {
               this.graph.push(price)
+              if (this.graph.length > this.maxGraphElements) {
+                this.graph = this.graph.slice(this.graph.length - this.maxGraphElements)
+              }
             }
             t.price = price
           })
