@@ -18,19 +18,32 @@ const callApiHandlers = e => {
   handlers.forEach(fn => fn(newPrice))
 }
 
-worker.port.addEventListener('message', e => {
-  if (e.data === 'firstTab') {
-    socket = new WebSocket(`wss://streamer.cryptocompare.com/v2?api_key=${keys.API_CRYPTO}`)
-    socket.addEventListener('message', event => {
-      callApiHandlers(event)
-      worker.port.postMessage(event.data)
+export function initSharedWorker() {
+  return new Promise(((resolve, reject) => {
+    worker.port.addEventListener('message', e => {
+      const data = e.data.split(':')
+      const type = data.shift()
+      const msg = data.join(':')
+
+      if (type === 'init' && msg === 'main') {
+        socket = new WebSocket(`wss://streamer.cryptocompare.com/v2?api_key=${keys.API_CRYPTO}`)
+        socket.addEventListener('message', event => {
+          callApiHandlers(event)
+          worker.port.postMessage(event.data)
+        })
+        resolve(true)
+      } else if (type === 'data') {
+        callApiHandlers({data: msg})
+        resolve(false)
+      }
+      setTimeout(() => {
+        reject('big timeout to connection')
+      }, 5000)
     })
-  } else {
-    callApiHandlers(e)
-  }
-})
-worker.port.start()
-worker.port.postMessage('start')
+    worker.port.start()
+    worker.port.postMessage('start')
+  }))
+}
 
 function sendToWebSocket(message) {
   const stringifiedMessage = JSON.stringify(message)
@@ -39,7 +52,6 @@ function sendToWebSocket(message) {
     return
   }
   socket.addEventListener('open', () => {
-    console.log('afterOpen')
     socket.send(stringifiedMessage)
   }, {once: true})
 }
@@ -53,11 +65,14 @@ function subscribeToTickerOnWs(ticker, currency) {
     socket.addEventListener('message', e => {
       const {MESSAGE: message} = JSON.parse(e.data)
       if (message === INVALID_MESSAGE) {
-        reject()
+        resolve(false)
       }
       if (message === SUBSCRIBE_COMPLETE) {
-        resolve()
+        resolve(true)
       }
+      setTimeout(() => {
+        reject('big timeout to connection')
+      }, 5000)
     })
   })
 }
@@ -73,15 +88,17 @@ export const subscribeToTicker = async (ticker, cb) => {
   const subscribers = tickersHandlers.get(ticker) || []
   tickersHandlers.set(ticker, [...subscribers, cb])
   try {
-    await subscribeToTickerOnWs(ticker, USD_CURRENCY)
-    return USD_CURRENCY
-  } catch (_) {
-    try {
-      await subscribeToTickerOnWs(ticker, BTC_CURRENCY)
-      return BTC_CURRENCY
-    } catch (_) {
-      return false
+    let result = await subscribeToTickerOnWs(ticker, USD_CURRENCY)
+    if (result) {
+      return USD_CURRENCY
+    } else {
+      result = await subscribeToTickerOnWs(ticker, BTC_CURRENCY)
+      if (result) {
+        return BTC_CURRENCY
+      }
     }
+  } catch (e) {
+    console.warn('subscribe error', e)
   }
 }
 

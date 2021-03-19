@@ -186,7 +186,7 @@
 </template>
 
 <script>
-import {subscribeToTicker, unsubscribeFromTicker} from './api'
+import {initSharedWorker, subscribeToTicker, unsubscribeFromTicker} from './api'
 
 export default {
   name: 'App',
@@ -216,11 +216,13 @@ export default {
 
     const tickersData = localStorage.getItem('cryptonomicon-list')
 
+    await initSharedWorker()
     if (tickersData) {
       this.tickers = JSON.parse(tickersData)
-      for (const ticker of this.tickers) {
+      this.tickers.map(async ticker => {
         ticker.currency = await subscribeToTicker(ticker.name, newPrice => this.updateTicker(ticker.name, newPrice))
-      }
+        return ticker
+      })
     }
 
     this.loading = true
