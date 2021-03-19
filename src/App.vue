@@ -98,7 +98,7 @@
           <div
               v-for="t in paginatedTickers"
               :key="t.name"
-              @click="selectedTicker = t"
+              @click="select(t)"
               :class="{
                 'border-4': selectedTicker === t,
                 'bg-white': !!t.currency,
@@ -203,7 +203,7 @@ export default {
       page: 1,
       filter: '',
       badTickerError: false,
-      maxGraphElements: 1,
+      maxGraphElements: 1
     }
   },
   async created() {
@@ -239,7 +239,6 @@ export default {
   },
 
   mounted() {
-
     window.addEventListener('resize', this.calculateMaxGraphElements)
   },
 
@@ -302,12 +301,10 @@ export default {
     }
   },
   methods: {
-    calculateMaxGraphElements() {
+    calculateMaxGraphElements(barWidth = this.$refs.bar.clientWidth) {
       if (!this.$refs.graph) {
         return
       }
-      const barWidth = this.$refs.bar.clientWidth
-      console.log(barWidth)
       this.maxGraphElements = this.$refs.graph.clientWidth / barWidth
     },
 
@@ -351,9 +348,16 @@ export default {
         this.filter = ''
         this.ticker = ''
 
-        const currency = await subscribeToTicker(currentTicker.name, newPrice => this.updateTicker(currentTicker.name, newPrice))
-        this.tickers.find(t => t.name === currentTicker.name).currency = currency
+        this.tickers.find(t => t.name === currentTicker.name).currency
+            = await subscribeToTicker(currentTicker.name, newPrice => this.updateTicker(currentTicker.name, newPrice))
       }
+    },
+
+    select(ticker) {
+      this.selectedTicker = ticker
+
+      const barWidth = this.$refs.bar?.clientWidth || 38
+      this.$nextTick().then(() => this.calculateMaxGraphElements(barWidth))
     },
 
     handleDelete(tToRemove) {
