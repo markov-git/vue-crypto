@@ -2,8 +2,8 @@ let connected = false
 const tabs = []
 
 self.addEventListener('connect', e => {
-  e.source.addEventListener('message', ev => {
-    if (ev.data === 'start') {
+  e.source.addEventListener('message', event => {
+    if (event.data === 'start') {
       if (connected === false) {
         e.source.postMessage('init:main')
         connected = true
@@ -12,7 +12,7 @@ self.addEventListener('connect', e => {
         tabs.push(e.source)
       }
     } else {
-      tabs.forEach(tab => tab.postMessage(`data:${ev.data}`))
+      tabs.forEach(tab => tab.postMessage(`data:${event.data}`))
     }
   })
   e.source.start()

@@ -16,10 +16,9 @@
 
       <add-ticker
           @add-ticker="add"
-          @ask-options="calcOptionTickers"
           :disabled="tooManyTickersAdded"
-          :optionTickers="optionTickers"
-          :error="tickerError"
+          :coin-list="coinList"
+          :tickers="tickers"
       />
 
       <template v-if="tickers.length">
@@ -104,7 +103,7 @@
 </template>
 
 <script>
-import { subscribeToTicker, unsubscribeFromTicker } from './api'
+import { initSharedWorker, subscribeToTicker, unsubscribeFromTicker } from './api'
 import AddTicker from '@/components/AddTicker'
 import GraphPainter from '@/components/GraphPainter'
 
@@ -120,14 +119,14 @@ export default {
       selectedTicker: null,
       graph: [],
       loading: false,
-      coinList: {},
-      optionTickers: [],
+      coinList: [],
       page: 1,
       filter: '',
-      tickerError: {},
     }
   },
   async created() {
+    await initSharedWorker()
+
     const windowData = Object.fromEntries(new URL(window.location).searchParams.entries())
 
     if (windowData.filter) {
@@ -189,23 +188,6 @@ export default {
     },
   },
   methods: {
-    calcOptionTickers(ticker) {
-      if (ticker.length === 0) {
-        return
-      }
-      this.tickerError = {}
-      const options = []
-
-      for (const t of this.coinList) {
-        if ((t.Symbol.includes(ticker) || t.FullName.includes(ticker)) && options.length < 4) {
-          options.push(t.Symbol)
-        }
-        if (t.Symbol === ticker) {
-          options[0] = t.Symbol
-        }
-      }
-      this.optionTickers = options
-    },
 
     updateTicker(tickerName, price) {
       this.tickers
@@ -224,26 +206,10 @@ export default {
           : price.toPrecision(2)
     },
 
-    isNotValidTicker({ name }) {
-      if (!this.coinList.some(t => t.Symbol === name)) {
-        this.tickerError.message = 'Такого тикера нет в базе'
-        return true
-      }
-      if (this.tickers.some(t => t.name === name)) {
-        this.tickerError.message = 'Тикер уже добавлен'
-        return true
-      }
-      return false
-    },
-
     async add(ticker) {
       const currentTicker = {
         name: ticker,
         price: '-',
-      }
-
-      if (this.isNotValidTicker(currentTicker)) {
-        return
       }
 
       this.tickers = [...this.tickers, currentTicker]
@@ -263,7 +229,6 @@ export default {
       unsubscribeFromTicker(tToRemove.name)
     },
 
-
   },
   watch: {
     tickers() {
@@ -272,10 +237,13 @@ export default {
     selectedTicker() {
       this.graph = []
     },
-    paginatedTickers() {
-      if (this.paginatedTickers.length === 0 && this.page > 1) {
-        this.page -= 1
-      }
+    // paginatedTickers() {
+    //   if (this.paginatedTickers.length === 0 && this.page > 1) {
+    //     this.page -= 1
+    //   }
+    // },
+    filter(newFilter) {
+      this.filter = newFilter.toUpperCase()
     },
     pageStateOptions(v) {
       window.history.pushState(

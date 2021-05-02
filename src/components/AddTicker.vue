@@ -13,7 +13,7 @@
               name="wallet"
               id="wallet"
               class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
-              placeholder="Например DOGE"
+              :placeholder="randomTicker"
               autocomplete="off"
           />
         </div>
@@ -29,7 +29,8 @@
               </span>
         </div>
 
-        <div v-if="error.message" class="text-sm text-red-600 text-center mt-1">{{error.message}}</div>
+        <div v-if="tickerValidationError" class="text-sm text-red-600 text-center mt-1">{{ tickerValidationError }}
+        </div>
 
         <add-button
             @click="add(ticker)"
@@ -56,33 +57,36 @@ export default {
       required: false,
       default: false,
     },
-    optionTickers: {
+    coinList: {
       type: Array,
       required: false,
       default: [],
     },
-    error: {
-      type: Object,
-      required: false,
-      default: {},
-    }
+    tickers: {
+      type: Array,
+      required: true,
+    },
   },
 
   emits: {
     'add-ticker': value => value.length > 0 && typeof value === 'string',
-    'ask-options': value => value.length > 0 && typeof value === 'string',
   },
 
   data() {
     return {
       ticker: '',
+      tickerValidationError: '',
+      randomTicker: 'Например'
     }
   },
 
   methods: {
-
     async add(ticker) {
       const newTicker = ticker || this.ticker || ''
+
+      if (this.isNotValidTicker(newTicker)) {
+        return
+      }
 
       if (newTicker.length === 0) {
         return
@@ -92,21 +96,57 @@ export default {
 
       this.ticker = ''
     },
+
+    isNotValidTicker(ticker) {
+      if (!this.coinList.some(t => t.Symbol === ticker)) {
+        this.tickerValidationError = 'Такого тикера нет в базе'
+        return true
+      }
+      if (this.tickers.some(t => t.name === ticker)) {
+        this.tickerValidationError = 'Тикер уже добавлен'
+        return true
+      }
+      return false
+    },
   },
 
   computed: {
     tickerLength() {
       return this.ticker.length
     },
-  },
 
-  watch: {
-    ticker() {
+    coinListLength() {
+      return this.coinList.length
+    },
+
+    optionTickers() {
       if (this.ticker.length === 0) {
         return
       }
-      this.$emit('ask-options', this.ticker.toUpperCase())
-    }
-  }
+      this.tickerValidationError = ''
+      const options = []
+
+      for (const t of this.coinList) {
+        if ((t.Symbol.includes(this.ticker) || t.FullName.includes(this.ticker)) && options.length < 4) {
+          options.push(t.Symbol)
+        }
+        if (t.Symbol === this.ticker) {
+          options[0] = t.Symbol
+        }
+      }
+      return options
+    },
+  },
+
+  watch: {
+    ticker(newTicker) {
+      this.ticker = newTicker.toUpperCase()
+    },
+    coinList(newState) {
+      if (newState.length) {
+        this.randomTicker = `Например ${this.coinList[Math.floor(Math.random() * this.coinListLength)]?.Symbol || 'BTC'}`
+      }
+    },
+  },
 }
 </script>

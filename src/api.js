@@ -19,30 +19,32 @@ const callApiHandlers = e => {
 }
 
 export function initSharedWorker() {
-  return new Promise(((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     worker.port.addEventListener('message', e => {
+      const rejectTimer = setTimeout(() => {
+        reject('big timeout to connection')
+      }, 5000)
       const data = e.data.split(':')
       const type = data.shift()
       const msg = data.join(':')
 
       if (type === 'init' && msg === 'main') {
+        clearTimeout(rejectTimer)
         socket = new WebSocket(`wss://streamer.cryptocompare.com/v2?api_key=${keys.API_CRYPTO}`)
         socket.addEventListener('message', event => {
           callApiHandlers(event)
           worker.port.postMessage(event.data)
         })
-        resolve(true)
+        resolve()
       } else if (type === 'data') {
+        clearTimeout(rejectTimer)
         callApiHandlers({data: msg})
-        resolve(false)
+        resolve()
       }
-      setTimeout(() => {
-        reject('big timeout to connection')
-      }, 5000)
     })
     worker.port.start()
     worker.port.postMessage('start')
-  }))
+  })
 }
 
 function sendToWebSocket(message) {
