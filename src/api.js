@@ -7,7 +7,7 @@ const INVALID_MESSAGE = 'INVALID_SUB'
 const SUBSCRIBE_COMPLETE = 'SUBSCRIBECOMPLETE'
 const USD_CURRENCY = 'USD'
 const BTC_CURRENCY = 'BTC'
-const worker = new SharedWorker('/sharedWorker.js')
+const worker = new SharedWorker('./sharedWorker.js')
 
 const callApiHandlers = e => {
   const {TYPE: type, FROMSYMBOL: currency, PRICE: newPrice} = JSON.parse(e.data)
